@@ -80,35 +80,9 @@ jobs:
         chmod +x ./gradlew
         ./gradlew createJextractImage -Pjdk_home="$JAVA_HOME" -Pllvm_home="$LLVM_HOME"
 
-    - name: Package jextract artifact
-      run: |
-        ARTIFACT_NAME="jextract-linux-amd64"
-        # Ensure the build directory and jextract output exist
-        if [ -d "build/jextract" ]; then
-          tar -czvf "${ARTIFACT_NAME}.tar.gz" -C build/jextract .
-          echo "ARTIFACT_PATH=${ARTIFACT_NAME}.tar.gz" | tee -a $GITHUB_ENV
-          echo "Packaged artifact: ${ARTIFACT_NAME}.tar.gz"
-        else
-          echo "::error::Build output directory 'build/jextract' not found."
-          exit 1
-        fi
-
-    - name: Upload build artifact (on push to main)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
         name: jextract-linux-amd64
-        path: ${{ env.ARTIFACT_PATH }}
-        retention-days: 7 # Optional: Adjust retention period
-
-    - name: Publish release asset (on new release)
-      if: github.event_name == 'release' && github.event.action == 'published'
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ${{ env.ARTIFACT_PATH }}
-        asset_name: ${{ env.ARTIFACT_PATH }} # This will be jextract-linux-amd64.tar.gz
-        asset_content_type: application/gzip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+        path: build/jextract/bin
+        retention-days: 7
