@@ -2,7 +2,7 @@ name: Build and test Jextract
 
 on:
   push:
-    branches: [ main ] # Assuming 'main' is the default branch
+    branches: [ master ]
   release:
     types: [ published ]
   workflow_dispatch: # Keep workflow_dispatch
@@ -35,10 +35,6 @@ jobs:
       run: |
         java --version
         echo JAVA_HOME=$JAVA_HOME
-
-    # Removed 'Check cache for LLVM'
-    # Removed 'Download and extract LLVM'
-    # Removed 'Create trimmed-down libclang image (for faster caching)'
 
     - name: Install LLVM and Clang
       run: |
