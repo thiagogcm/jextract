@@ -40,15 +40,14 @@ jobs:
         echo "Clang installed in: $(which clang)"
         echo "LLVM_HOME is $LLVM_HOME"
 
-    - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: wrapper
-
     - name: Build jextract artifact image
       run: |
         chmod +x ./gradlew
-        ./gradlew -Pjdk_home="$JAVA_HOME" -Pllvm_home=${{ env.LLVM_HOME }} clean verify
+        # manually add llvm lib to LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=${{ env.LLVM_HOME }}/lib:$LD_LIBRARY_PATH
+        echo "LD_LIBRARY_PATH is $LD_LIBRARY_PATH"
+
+        ./gradlew -Pjdk_home=${{ env.JAVA_HOME }} -Pllvm_home=${{ env.LLVM_HOME }} clean verify
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
