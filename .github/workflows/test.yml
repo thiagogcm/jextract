@@ -2,17 +2,17 @@ name: Build and test Jextract
 
 on:
   push:
-    branches-ignore:
-      - master
-      - pr/*
-  workflow_dispatch:
+    branches: [ main ] # Assuming 'main' is the default branch
+  release:
+    types: [ published ]
+  workflow_dispatch: # Keep workflow_dispatch
 
 env:
-  TOOLCHAIN_VERSION: 23
-  GRADLE_JAVA_VERSION: 23
-  CLANG_LLVM_VERSION: 13.0.0
-  CLANG_LLVM_BASE_URL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.0/"
-  JTREG_VERSION: 7.3.1+1
+  # TOOLCHAIN_VERSION: 23 # Removed
+  # GRADLE_JAVA_VERSION: 23 # Removed
+  # CLANG_LLVM_VERSION: 13.0.0 # Removed
+  # CLANG_LLVM_BASE_URL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.0/" # Removed
+  JTREG_VERSION: 7.3.1+1 # Keep for build-jtreg if that job remains
 
 jobs:
   validate-gradle-wrapper:
@@ -50,81 +50,27 @@ jobs:
         bash ./make/build.sh --jdk ${JAVA_HOME_11_X64}
         ls build/images/jtreg
 
-  build-and-test:
-    runs-on: ${{ matrix.os }}
-    needs: [build-jtreg]
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest]
-        include:
-          - os: ubuntu-20.04
-            TARGET: clang+llvm-13.0.0-x86_64-linux-gnu-ubuntu-20.04
-            ARCHIVE_EXT: "tar.xz"
-            LIB_DIR: lib
-            DEPS_ROOT: /tmp/deps
-          - os: windows-latest
-            TARGET: LLVM-13.0.0-win64
-            ARCHIVE_EXT: "exe"
-            LIB_DIR: bin
-            DEPS_ROOT: C:/tmp/deps
-
+  build-and-publish-linux-artifact: # Renamed job
+    runs-on: ubuntu-latest # Set runs-on
+    # needs: [build-jtreg] # Removed needs
+    # strategy: matrix: # Removed strategy
     steps:
     - name: 'Check out repository'
       uses: actions/checkout@v4.1.1
       with:
         fetch-depth: 1
 
-    - name: 'Prepare'
-      shell: sh
-      run: |
-        mkdir -p ${{ matrix.DEPS_ROOT }}
+    # Removed 'Prepare' step
+    # Removed 'Check cache for toolchain JDK'
+    # Removed 'Download toolchain JDK'
+    # Removed 'Extract Toolchain JDK (Non Windows)'
+    # Removed 'Extract Toolchain JDK (Windows)'
 
-    - name: 'Check cache for toolchain JDK'
-      id: get-cached-toolchain
-      uses: actions/cache@v4
+    - name: Set up JDK 24 # Renamed and updated
+      uses: actions/setup-java@v4
       with:
-        path: ${{ matrix.DEPS_ROOT }}/jdk-toolchain
-        key: jdk-toolchain-${{ env.TOOLCHAIN_VERSION }}-${{ matrix.os }}
-
-    - name: 'Download toolchain JDK'
-      id: download-toolchain-jdk
-      uses: oracle-actions/setup-java@v1.3.4
-      if: ${{ steps.get-cached-toolchain.outputs.cache-hit != 'true' }}
-      with:
-        website: jdk.java.net
-        release: ${{ env.TOOLCHAIN_VERSION }}
-        install: false
-
-    - name: 'Extract Toolchain JDK (Non Windows)'
-      if: ${{ matrix.os != 'windows-latest' && steps.get-cached-toolchain.outputs.cache-hit != 'true' }}
-      shell: sh
-      run: |
-        mkdir -p ${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked
-        tar --strip-components=1 -xvf ${{ steps.download-toolchain-jdk.outputs.archive }} -C ${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked
-        ls -lah ${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked
-        jdk_root="$(dirname $(find ${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked -name bin -type d))"
-        echo "jdk_root = $jdk_root"
-        mv "$jdk_root"/* ${{ matrix.DEPS_ROOT }}/jdk-toolchain/
-        ls -lah ${{ matrix.DEPS_ROOT }}/jdk-toolchain
-        ${{ matrix.DEPS_ROOT }}/jdk-toolchain/bin/java --version
-
-    - name: 'Extract Toolchain JDK (Windows)'
-      if: ${{ matrix.os == 'windows-latest' && steps.get-cached-toolchain.outputs.cache-hit != 'true' }}
-      shell: pwsh
-      run: |
-        New-Item -ItemType Directory ${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked
-        7z x ${{ steps.download-toolchain-jdk.outputs.archive }} -o${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked
-        ls ${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked
-        $jdk_root = Get-ChildItem -Path ${{ matrix.DEPS_ROOT }}/jdk-toolchain/unpacked/*/bin -Recurse | Select-Object -First 1 | %{ $_.Parent.Parent.FullName }
-        Write-Host "jdk_root = $jdk_root"
-        Move-Item -Path "$jdk_root/*" -Destination ${{ matrix.DEPS_ROOT }}/jdk-toolchain/
-        ls ${{ matrix.DEPS_ROOT }}/jdk-toolchain/
-        ${{ matrix.DEPS_ROOT }}/jdk-toolchain/bin/java --version
-
-    - name: 'Setup Gradle Java'
-      uses: oracle-actions/setup-java@v1.3.4
-      with:
-        release: ${{ env.GRADLE_JAVA_VERSION }}
+        java-version: '24'
+        distribution: 'temurin'
 
     - name: 'Check default Java version'
       shell: sh
@@ -132,52 +78,85 @@ jobs:
         java --version
         echo JAVA_HOME=$JAVA_HOME
 
-    - name: 'Check cache for LLVM'
-      id: get-cached-llvm
-      uses: actions/cache@v4
-      with:
-        path: ${{ matrix.DEPS_ROOT }}/llvm/image
-        key: llvm-${{ env.CLANG_LLVM_VERSION }}-${{ matrix.os }}
+    # Removed 'Check cache for LLVM'
+    # Removed 'Download and extract LLVM'
+    # Removed 'Create trimmed-down libclang image (for faster caching)'
 
-    - name: 'Download and extract LLVM'
-      if: ${{ steps.get-cached-llvm.outputs.cache-hit != 'true' }}
-      shell: bash
+    - name: Install LLVM and Clang
       run: |
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/unpacked
-        curl -L ${{ env.CLANG_LLVM_BASE_URL }}${{ matrix.TARGET }}.${{ matrix.ARCHIVE_EXT }} -o ${{ matrix.DEPS_ROOT }}/llvm/LLVM.${{ matrix.ARCHIVE_EXT }}
-        if [ "${{ matrix.ARCHIVE_EXT }}" = "exe" ]; then
-          7z x ${{ matrix.DEPS_ROOT }}/llvm/LLVM.${{ matrix.ARCHIVE_EXT }} -o${{ matrix.DEPS_ROOT }}/llvm/unpacked
+        sudo apt-get update
+        sudo apt-get install -y llvm clang libclang-dev llvm-dev
+        LLVM_CONFIG_PATH=$(which llvm-config || true)
+        if [ -f "$LLVM_CONFIG_PATH" ]; then
+          LLVM_PREFIX=$(llvm-config --prefix)
+          echo "LLVM_HOME=${LLVM_PREFIX}" | tee -a $GITHUB_ENV
+          echo "Set LLVM_HOME to $LLVM_PREFIX"
         else
-          tar --strip-components=1 -xvf ${{ matrix.DEPS_ROOT }}/llvm/LLVM.${{ matrix.ARCHIVE_EXT }} -C ${{ matrix.DEPS_ROOT }}/llvm/unpacked
+          # Fallback to find latest version, similar to previous attempt
+          FOUND_LLVM_DIR=$(ls -d /usr/lib/llvm-*/lib/clang/*/include 2>/dev/null | sort -V | tail -n 1 | sed -E 's|(/usr/lib/llvm-[0-9]+)/lib/clang/.*|\1|')
+          if [ -n "$FOUND_LLVM_DIR" ] && [ -d "$FOUND_LLVM_DIR" ]; then
+             echo "LLVM_HOME=${FOUND_LLVM_DIR}" | tee -a $GITHUB_ENV
+             echo "Using fallback LLVM_HOME=${FOUND_LLVM_DIR}"
+          else
+             echo "::error::Could not automatically determine LLVM_HOME. Please check LLVM installation."
+             exit 1
+          fi
         fi
-        ls -lah ${{ matrix.DEPS_ROOT }}/llvm/unpacked
+        clang --version
+        echo "Clang installed in: $(which clang)"
+        echo "LLVM_HOME is $LLVM_HOME"
 
-    - name: 'Create trimmed-down libclang image (for faster caching)'
-      if: ${{ steps.get-cached-llvm.outputs.cache-hit != 'true' }}
-      shell: bash
-      run: |
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/image/${{ matrix.LIB_DIR }}/
-        cp -a ${{ matrix.DEPS_ROOT }}/llvm/unpacked/${{ matrix.LIB_DIR }}/libclang.* ${{ matrix.DEPS_ROOT }}/llvm/image/${{ matrix.LIB_DIR }}/
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/image/include/clang-c
-        cp -a ${{ matrix.DEPS_ROOT }}/llvm/unpacked/include/clang-c/. ${{ matrix.DEPS_ROOT }}/llvm/image/include/clang-c/
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/image/lib/clang/$CLANG_LLVM_VERSION/include/
-        cp -a ${{ matrix.DEPS_ROOT }}/llvm/unpacked/lib/clang/$CLANG_LLVM_VERSION/include/. ${{ matrix.DEPS_ROOT }}/llvm/image/lib/clang/$CLANG_LLVM_VERSION/include/
-        ls -lah ${{ matrix.DEPS_ROOT }}/llvm/image
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: wrapper # Or a specific version
 
-    - name: 'Build Jextract'
-      shell: sh
-      run: |
-        sh ./gradlew -Pjdk_home=${{ matrix.DEPS_ROOT }}/jdk-toolchain -Pllvm_home=${{ matrix.DEPS_ROOT }}/llvm/image clean verify
-
-    - name: 'Get cached JTReg'
+    - name: Cache Gradle packages
       uses: actions/cache@v4
       with:
-        path: ./deps/jtreg/build/images/jtreg
-        enableCrossOsArchive: true
-        fail-on-cache-miss: true
-        key: jtreg-${{ env.JTREG_VERSION }}
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
 
-    - name: 'Run tests'
-      shell: sh
+    - name: Build jextract artifact image # Renamed and updated
       run: |
-        sh ./gradlew -Pjdk_home=${{ matrix.DEPS_ROOT }}/jdk-toolchain -Pllvm_home=${{ matrix.DEPS_ROOT }}/llvm/image -Pjtreg_home=./deps/jtreg/build/images/jtreg jtreg
+        chmod +x ./gradlew
+        ./gradlew createJextractImage -Pjdk_home="$JAVA_HOME" -Pllvm_home="$LLVM_HOME"
+
+      - name: Package jextract artifact
+        run: |
+          ARTIFACT_NAME="jextract-linux-amd64"
+          # Ensure the build directory and jextract output exist
+          if [ -d "build/jextract" ]; then
+            tar -czvf "${ARTIFACT_NAME}.tar.gz" -C build/jextract .
+            echo "ARTIFACT_PATH=${ARTIFACT_NAME}.tar.gz" | tee -a $GITHUB_ENV
+            echo "Packaged artifact: ${ARTIFACT_NAME}.tar.gz"
+          else
+            echo "::error::Build output directory 'build/jextract' not found."
+            exit 1
+          fi
+
+      - name: Upload build artifact (on push to main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jextract-linux-amd64
+          path: ${{ env.ARTIFACT_PATH }}
+          retention-days: 7 # Optional: Adjust retention period
+
+      - name: Publish release asset (on new release)
+        if: github.event_name == 'release' && github.event.action == 'published'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.ARTIFACT_PATH }}
+          asset_name: ${{ env.ARTIFACT_PATH }} # This will be jextract-linux-amd64.tar.gz
+          asset_content_type: application/gzip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Removed 'Get cached JTReg'
+    # Removed 'Run tests'
