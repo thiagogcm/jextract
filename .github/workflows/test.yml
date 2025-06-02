@@ -8,14 +8,6 @@ on:
   workflow_dispatch: # Keep workflow_dispatch
 
 jobs:
-  validate-gradle-wrapper:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-        with:
-          fetch-depth: 1
-      - uses: gradle/actions/wrapper-validation@v4
-
   build-and-publish-linux-artifact:
     runs-on: ubuntu-latest # Set runs-on
     steps:
@@ -63,7 +55,7 @@ jobs:
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
-        gradle-version: wrapper # Or a specific version
+        gradle-version: wrapper
 
     - name: Cache Gradle packages
       uses: actions/cache@v4
@@ -78,11 +70,11 @@ jobs:
     - name: Build jextract artifact image
       run: |
         chmod +x ./gradlew
-        ./gradlew createJextractImage -Pjdk_home="$JAVA_HOME" -Pllvm_home="$LLVM_HOME"
+        ./gradlew -Pjdk_home="$JAVA_HOME" -Pllvm_home="$LLVM_HOME" clean verify
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
         name: jextract-linux-amd64
-        path: build/jextract/bin
+        path: build
         retention-days: 7
