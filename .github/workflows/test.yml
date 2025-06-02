@@ -3,9 +3,11 @@ name: Build and test Jextract
 on:
   push:
     branches: [ master ]
-  release:
-    types: [ published ]
+
   workflow_dispatch: # Keep workflow_dispatch
+
+env:
+  LLVM_HOME: /usr/lib/llvm-18
 
 jobs:
   build-and-publish-linux-artifact:
@@ -27,27 +29,13 @@ jobs:
       run: |
         java --version
         echo JAVA_HOME=$JAVA_HOME
+        echo JDK_HOME=$JAVA_HOME
 
     - name: Install LLVM and Clang
       run: |
         sudo apt-get update
         sudo apt-get install -y llvm clang libclang-dev llvm-dev
-        LLVM_CONFIG_PATH=$(which llvm-config || true)
-        if [ -f "$LLVM_CONFIG_PATH" ]; then
-          LLVM_PREFIX=$(llvm-config --prefix)
-          echo "LLVM_HOME=${LLVM_PREFIX}" | tee -a $GITHUB_ENV
-          echo "Set LLVM_HOME to $LLVM_PREFIX"
-        else
-          # Fallback to find latest version, similar to previous attempt
-          FOUND_LLVM_DIR=$(ls -d /usr/lib/llvm-*/lib/clang/*/include 2>/dev/null | sort -V | tail -n 1 | sed -E 's|(/usr/lib/llvm-[0-9]+)/lib/clang/.*|\1|')
-          if [ -n "$FOUND_LLVM_DIR" ] && [ -d "$FOUND_LLVM_DIR" ]; then
-             echo "LLVM_HOME=${FOUND_LLVM_DIR}" | tee -a $GITHUB_ENV
-             echo "Using fallback LLVM_HOME=${FOUND_LLVM_DIR}"
-          else
-             echo "::error::Could not automatically determine LLVM_HOME. Please check LLVM installation."
-             exit 1
-          fi
-        fi
+
         clang --version
         echo "Clang installed in: $(which clang)"
         echo "LLVM_HOME is $LLVM_HOME"
@@ -57,20 +45,10 @@ jobs:
       with:
         gradle-version: wrapper
 
-    - name: Cache Gradle packages
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
-
     - name: Build jextract artifact image
       run: |
         chmod +x ./gradlew
-        ./gradlew -Pjdk_home="$JAVA_HOME" -Pllvm_home="$LLVM_HOME" clean verify
+        ./gradlew -Pjdk_home="$JAVA_HOME" -Pllvm_home=${{ env.LLVM_HOME }} clean verify
 
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
@@ -78,3 +56,5 @@ jobs:
         name: jextract-linux-amd64
         path: build
         retention-days: 7
+        overwrite: true
+        include-hidden-files: true
