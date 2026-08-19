@@ -37,6 +37,7 @@ import org.openjdk.jextract.Type;
 import org.openjdk.jextract.Type.Delegated;
 import org.openjdk.jextract.Type.Primitive;
 import org.openjdk.jextract.clang.Cursor;
+import org.openjdk.jextract.clang.CursorKind;
 import org.openjdk.jextract.clang.TypeKind;
 
 /**
@@ -96,8 +97,15 @@ class TypeMaker {
                 return Type.primitive(Primitive.Kind.Double);
             case Float:
                 return Type.primitive(Primitive.Kind.Float);
+            case Elaborated: {
+                // newer libclang wraps a typedef reference in an elaborated type; desugaring to
+                // the canonical type below would drop it, so recover it from the declaration
+                Cursor decl = t.getDeclarationCursor();
+                if (decl.kind() == CursorKind.TypedefDecl) {
+                    return Type.typedef(decl.spelling(), makeType(t.canonicalType(), treeMaker));
+                }
+            }
             case Unexposed:
-            case Elaborated:
                 org.openjdk.jextract.clang.Type canonical = t.canonicalType();
                 if (canonical.equalType(t)) {
                     return Type.error(t.spelling());

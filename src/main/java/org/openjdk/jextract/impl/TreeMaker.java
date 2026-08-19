@@ -52,6 +52,7 @@ import org.openjdk.jextract.clang.LinkageKind;
 import org.openjdk.jextract.clang.PrintingPolicy;
 import org.openjdk.jextract.clang.PrintingPolicyProperty;
 import org.openjdk.jextract.clang.SourceLocation;
+import org.openjdk.jextract.clang.SourceRange;
 import org.openjdk.jextract.clang.TypeKind;
 import org.openjdk.jextract.impl.DeclarationImpl.AnonymousStruct;
 import org.openjdk.jextract.impl.DeclarationImpl.ClangAlignOf;
@@ -310,10 +311,14 @@ class TreeMaker {
             pendingBitfieldsPos.set(null);
         }
 
+        // newer libclang names an unnamed record "struct (unnamed at foo.h:25:4)", which is
+        // not a usable declaration name
+        String recordName = isUnnamed(recordCursor) ? "" : recordCursor.spelling();
+
         Scoped structOrUnionDecl = recordCursor.kind() == CursorKind.StructDecl ?
-                Declaration.struct(CursorPosition.of(recordCursor), recordCursor.spelling(),
+                Declaration.struct(CursorPosition.of(recordCursor), recordName,
                         pendingFields.toArray(new Declaration[0])) :
-                Declaration.union(CursorPosition.of(recordCursor), recordCursor.spelling(),
+                Declaration.union(CursorPosition.of(recordCursor), recordName,
                         pendingFields.toArray(new Declaration[0]));
         ClangSizeOf.with(structOrUnionDecl, recordCursor.type().size() * 8);
         ClangAlignOf.with(structOrUnionDecl, recordCursor.type().align() * 8);
@@ -322,6 +327,24 @@ class TreeMaker {
         }
 
         return Type.declared(structOrUnionDecl);
+    }
+
+    /*
+     * Whether a record or enum declaration has no name of its own, which an empty spelling no
+     * longer tells us. clang_Cursor_isAnonymous misses `typedef struct { ... } Name;`, whose tag
+     * is named for linkage: that one is recognized by its location, since a real tag name puts
+     * the cursor at the name token while a tag without one leaves it at the start of its extent.
+     */
+    private static boolean isUnnamed(Cursor c) {
+        if (c.isAnonymous()) {
+            return true;
+        }
+        SourceLocation cursorLoc = c.getSourceLocation();
+        SourceRange extent = c.getExtent();
+        if (cursorLoc == null || extent == null) {
+            return false;
+        }
+        return Objects.equals(cursorLoc.getFileLocation(), extent.getBegin().getFileLocation());
     }
 
     /*
@@ -346,18 +369,19 @@ class TreeMaker {
         AtomicReference<OptionalLong> result = new AtomicReference<>(OptionalLong.empty());
         record.forEachShortCircuit(fc -> {
             if (Utils.isFlattenable(fc)) {
-                if (!fc.spelling().isEmpty()) {
-                    long offsetToOutermost = outermostParent.type().getOffsetOf(fc.spelling());
-                    long offsetToAnon = anonRecord.type().getOffsetOf(fc.spelling());
-                    result.set(OptionalLong.of(offsetToOutermost - offsetToAnon));
-                    return false;
-                } else if (fc.isAnonymousStruct()) {
+                // test for an anonymous record first: its display name is no longer empty
+                if (fc.isAnonymousStruct()) {
                     OptionalLong nestedResult = offsetOfAnonymousRecord(outermostParent, anonRecord, fc);
                     if (nestedResult.isPresent()) {
                         result.set(nestedResult);
                         return false;
                     }
                     return true;
+                } else if (!fc.spelling().isEmpty()) {
+                    long offsetToOutermost = outermostParent.type().getOffsetOf(fc.spelling());
+                    long offsetToAnon = anonRecord.type().getOffsetOf(fc.spelling());
+                    result.set(OptionalLong.of(offsetToOutermost - offsetToAnon));
+                    return false;
                 }
             }
             return true;
@@ -368,14 +392,19 @@ class TreeMaker {
     public Declaration.Scoped createEnum(Cursor c) {
         if (c.isDefinition()) {
             List<Declaration> decls = new ArrayList<>();
+            boolean unnamed = isUnnamed(c);
+            String enumName = unnamed ? "" : c.spelling();
+            // the declaration has no name, but an enum named through a typedef can still be shown
+            // by that name: libclang prints it as the type's spelling on every version
+            String docName = unnamed && !c.isAnonymous() ? c.type().spelling() : enumName;
             c.forEach(child -> {
                 if (child.kind() == CursorKind.EnumConstantDecl) {
                     Declaration enumConstantDecl = createTree(child);
-                    DeclarationString.with(enumConstantDecl, enumConstantString(c.spelling(), (Declaration.Constant) enumConstantDecl));
+                    DeclarationString.with(enumConstantDecl, enumConstantString(docName, (Declaration.Constant) enumConstantDecl));
                     decls.add(enumConstantDecl);
                 }
             });
-            Declaration.Scoped enumDecl = Declaration.enum_(CursorPosition.of(c), c.spelling(), decls.toArray(new Declaration[0]));
+            Declaration.Scoped enumDecl = Declaration.enum_(CursorPosition.of(c), enumName, decls.toArray(new Declaration[0]));
             DeclarationImpl.ClangEnumType.with(enumDecl, toType(c.getEnumDeclIntegerType()));
             return enumDecl;
         } else {
