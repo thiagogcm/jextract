@@ -1,0 +1,72 @@
+name: 'Set up libclang'
+description: 'Downloads LLVM and creates a trimmed-down libclang image, cached across runs'
+
+inputs:
+  version:
+    description: 'LLVM version to download, e.g. 13.0.0'
+    required: true
+  base-url:
+    description: 'Base URL to download the LLVM release from'
+    required: true
+  target:
+    description: 'Name of the LLVM release archive, without extension'
+    required: true
+  archive-ext:
+    description: 'Extension of the LLVM release archive (tar.xz or exe)'
+    required: true
+  lib-dir:
+    description: 'Directory holding the shared libraries in the LLVM release (lib or bin)'
+    required: true
+  deps-root:
+    description: 'Directory to unpack dependencies into'
+    required: true
+
+outputs:
+  llvm-home:
+    description: 'Path to the trimmed-down libclang image, to be passed as -Pllvm_home'
+    value: ${{ steps.image-path.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - name: 'Check cache for LLVM'
+      id: get-cached-llvm
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ inputs.deps-root }}/llvm/image
+        key: llvm-${{ inputs.version }}-${{ inputs.target }}
+
+    - name: 'Download and extract LLVM'
+      if: ${{ steps.get-cached-llvm.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.deps-root }}/llvm/unpacked
+        curl -L ${{ inputs.base-url }}${{ inputs.target }}.${{ inputs.archive-ext }} -o ${{ inputs.deps-root }}/llvm/LLVM.${{ inputs.archive-ext }}
+        if [ "${{ inputs.archive-ext }}" = "exe" ]; then
+          7z x ${{ inputs.deps-root }}/llvm/LLVM.${{ inputs.archive-ext }} -o${{ inputs.deps-root }}/llvm/unpacked
+        else
+          tar --strip-components=1 -xvf ${{ inputs.deps-root }}/llvm/LLVM.${{ inputs.archive-ext }} -C ${{ inputs.deps-root }}/llvm/unpacked
+        fi
+        ls -lah ${{ inputs.deps-root }}/llvm/unpacked
+
+    - name: 'Create trimmed-down libclang image (for faster caching)'
+      if: ${{ steps.get-cached-llvm.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.deps-root }}/llvm/image/${{ inputs.lib-dir }}/
+        cp -a ${{ inputs.deps-root }}/llvm/unpacked/${{ inputs.lib-dir }}/libclang.* ${{ inputs.deps-root }}/llvm/image/${{ inputs.lib-dir }}/
+        mkdir -p ${{ inputs.deps-root }}/llvm/image/include/clang-c
+        cp -a ${{ inputs.deps-root }}/llvm/unpacked/include/clang-c/. ${{ inputs.deps-root }}/llvm/image/include/clang-c/
+        # clang's resource directory is named after the major version only on recent releases
+        # (lib/clang/22), but after the full version on older ones (lib/clang/13.0.0)
+        resource_dir="$(ls -d ${{ inputs.deps-root }}/llvm/unpacked/lib/clang/*/ | head -1)"
+        resource_version="$(basename "$resource_dir")"
+        echo "clang resource directory: $resource_version"
+        mkdir -p ${{ inputs.deps-root }}/llvm/image/lib/clang/$resource_version/include/
+        cp -a "$resource_dir"include/. ${{ inputs.deps-root }}/llvm/image/lib/clang/$resource_version/include/
+        ls -lah ${{ inputs.deps-root }}/llvm/image
+
+    - name: 'Export libclang image path'
+      id: image-path
+      shell: bash
+      run: echo "path=${{ inputs.deps-root }}/llvm/image" >> "$GITHUB_OUTPUT"

@@ -14,7 +14,7 @@ Alternatively, to build jextract from the latest sources (which include all the 
 
 ### Building
 
-`jextract` depends on the [C libclang API](https://clang.llvm.org/doxygen/group__CINDEX.html). To build the jextract sources, the easiest option is to download LLVM binaries for your platform, which can be found [here](https://releases.llvm.org/download.html) (version 13.0.0 is recommended). Both the `jextract` tool and the bindings it generates depend heavily on the [Foreign Function & Memory API](https://openjdk.java.net/jeps/454). A suitable [JDK 23 or higher distribution](https://jdk.java.net/23/) is also required.
+`jextract` depends on the [C libclang API](https://clang.llvm.org/doxygen/group__CINDEX.html). To build the jextract sources, the easiest option is to download LLVM binaries for your platform, which can be found [here](https://releases.llvm.org/download.html) (versions 13.0.0 through 20.x work; CI builds and tests against 13.0.0 and 20.x, while libclang 21 and later currently crashes during parsing). Both the `jextract` tool and the bindings it generates depend heavily on the [Foreign Function & Memory API](https://openjdk.java.net/jeps/454). A suitable [JDK 25 or higher distribution](https://jdk.java.net/25/) is also required.
 
 > <details><summary><strong>Building older jextract versions</strong></summary>
 >
@@ -28,7 +28,7 @@ Alternatively, to build jextract from the latest sources (which include all the 
 
 `jextract` can be built using `gradle`, as follows (on Windows, `gradlew.bat` should be used instead).
 
-We currently use gradle version 8.11.1 which is fetched automatically by the gradle wrapper. Please refer to the [compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html) to see which version of java is needed in `PATH`/`JAVA_HOME` to run gradle. Note that the JDK we use to build (the toolchain JDK) is passed in separately as a property.
+We currently use gradle version 9.6.1 which is fetched automatically by the gradle wrapper. Please refer to the [compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html) to see which version of java is needed in `PATH`/`JAVA_HOME` to run gradle. Note that the JDK we use to build (the toolchain JDK) is passed in separately as a property.
 
 
 
@@ -57,6 +57,56 @@ To run the `jextract` tool, simply run the `jextract` command in the `bin` folde
 $ build/jextract/bin/jextract
 Expected a header file
 ```
+
+### Building a native image
+
+`jextract` can also be compiled ahead-of-time into a native executable using
+[GraalVM](https://www.graalvm.org/) (25.2 or later) and the official
+[Native Image Gradle plugin](https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html).
+Gradle must run on the GraalVM JDK for this, so point `JAVA_HOME` at it:
+
+```sh
+$ JAVA_HOME=<graalvm_home> sh ./gradlew -Pjdk_home=<graalvm_home> -Pllvm_home=<libclang_dir> verifyNative
+```
+
+This produces a self-contained image under `build/jextract-native`, laid out like the `jlink` image
+(`bin/jextract`, the clang builtin headers in `conf/jextract`, and `libclang` in `libs`). The
+`verifyNative` task additionally runs the native executable against `test.h` as a smoke test. To
+build the executable without running it, use the `createJextractNativeImage` task.
+
+Since the executable has no runtime image to resolve the clang builtin headers from, `jextract`
+falls back to a `conf/jextract` directory next to the executable. Run it with `libclang` on the
+library search path:
+
+```sh
+$ LD_LIBRARY_PATH=build/jextract-native/libs build/jextract-native/bin/jextract
+```
+
+A prebuilt Linux x64 image is also attached to every CI run as the `jextract-native-linux-x64`
+artifact (a `.tar.gz`, since artifact zips do not preserve the executable bit):
+
+```sh
+$ tar -xzf jextract-native-linux-x64.tar.gz
+$ LD_LIBRARY_PATH=jextract-native/libs jextract-native/bin/jextract
+```
+
+> <details><summary><strong>Updating the native-image reachability metadata</strong></summary>
+>
+> Native image needs to know, ahead of time, every `libclang` downcall that `jextract` makes.
+> These are recorded in `src/main/resources/META-INF/native-image/org.openjdk.jextract/reachability-metadata.json`
+> and are collected with the GraalVM tracing agent. If a new `libclang` function is used, regenerate
+> the `foreign` section by running `jextract` under the agent:
+>
+> ```sh
+> $ JAVA_HOME=<graalvm_home> sh ./gradlew -Pjdk_home=<graalvm_home> -Pllvm_home=<libclang_dir> \
+>       -Pnative_metadata_out=<output_dir> runJextract --args="<header.h> --output <dir>"
+> ```
+>
+> The agent merges into `<output_dir>` across runs, so it can be pointed at several headers in turn
+> to widen coverage. Note that the agent also records the (input-specific) `java.lang` lookups that
+> `NameMangler` performs; the committed `reflection` section instead registers every public type in
+> `java.lang` and `java.lang.foreign`, so those agent entries should not be copied over.
+> </details>
 
 ### Testing
 

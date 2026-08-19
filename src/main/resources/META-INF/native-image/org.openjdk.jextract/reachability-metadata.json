@@ -1,0 +1,756 @@
+{
+  "bundles": [
+    {
+      "name": "org.openjdk.jextract.impl.resources.Messages"
+    }
+  ],
+  "reflection": [
+    {
+      "type": "java.lang.AbstractMethodError"
+    },
+    {
+      "type": "java.lang.Appendable"
+    },
+    {
+      "type": "java.lang.ArithmeticException"
+    },
+    {
+      "type": "java.lang.ArrayIndexOutOfBoundsException"
+    },
+    {
+      "type": "java.lang.ArrayStoreException"
+    },
+    {
+      "type": "java.lang.AssertionError"
+    },
+    {
+      "type": "java.lang.AutoCloseable"
+    },
+    {
+      "type": "java.lang.Boolean",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.BootstrapMethodError"
+    },
+    {
+      "type": "java.lang.Byte"
+    },
+    {
+      "type": "java.lang.CharSequence"
+    },
+    {
+      "type": "java.lang.Character"
+    },
+    {
+      "type": "java.lang.Class"
+    },
+    {
+      "type": "java.lang.ClassCastException"
+    },
+    {
+      "type": "java.lang.ClassCircularityError"
+    },
+    {
+      "type": "java.lang.ClassFormatError"
+    },
+    {
+      "type": "java.lang.ClassLoader"
+    },
+    {
+      "type": "java.lang.ClassNotFoundException"
+    },
+    {
+      "type": "java.lang.ClassValue"
+    },
+    {
+      "type": "java.lang.CloneNotSupportedException"
+    },
+    {
+      "type": "java.lang.Cloneable"
+    },
+    {
+      "type": "java.lang.Comparable"
+    },
+    {
+      "type": "java.lang.Deprecated"
+    },
+    {
+      "type": "java.lang.Double"
+    },
+    {
+      "type": "java.lang.Enum"
+    },
+    {
+      "type": "java.lang.EnumConstantNotPresentException"
+    },
+    {
+      "type": "java.lang.Error"
+    },
+    {
+      "type": "java.lang.Exception"
+    },
+    {
+      "type": "java.lang.ExceptionInInitializerError"
+    },
+    {
+      "type": "java.lang.Float"
+    },
+    {
+      "type": "java.lang.FunctionalInterface"
+    },
+    {
+      "type": "java.lang.IO"
+    },
+    {
+      "type": "java.lang.IllegalAccessError"
+    },
+    {
+      "type": "java.lang.IllegalAccessException"
+    },
+    {
+      "type": "java.lang.IllegalArgumentException"
+    },
+    {
+      "type": "java.lang.IllegalCallerException"
+    },
+    {
+      "type": "java.lang.IllegalMonitorStateException"
+    },
+    {
+      "type": "java.lang.IllegalStateException"
+    },
+    {
+      "type": "java.lang.IllegalThreadStateException"
+    },
+    {
+      "type": "java.lang.IncompatibleClassChangeError"
+    },
+    {
+      "type": "java.lang.IndexOutOfBoundsException"
+    },
+    {
+      "type": "java.lang.InheritableThreadLocal"
+    },
+    {
+      "type": "java.lang.InstantiationError"
+    },
+    {
+      "type": "java.lang.InstantiationException"
+    },
+    {
+      "type": "java.lang.Integer"
+    },
+    {
+      "type": "java.lang.InternalError"
+    },
+    {
+      "type": "java.lang.InterruptedException"
+    },
+    {
+      "type": "java.lang.Iterable"
+    },
+    {
+      "type": "java.lang.LayerInstantiationException"
+    },
+    {
+      "type": "java.lang.LinkageError"
+    },
+    {
+      "type": "java.lang.Long"
+    },
+    {
+      "type": "java.lang.MatchException"
+    },
+    {
+      "type": "java.lang.Math"
+    },
+    {
+      "type": "java.lang.Module"
+    },
+    {
+      "type": "java.lang.ModuleLayer"
+    },
+    {
+      "type": "java.lang.NegativeArraySizeException"
+    },
+    {
+      "type": "java.lang.NoClassDefFoundError"
+    },
+    {
+      "type": "java.lang.NoSuchFieldError"
+    },
+    {
+      "type": "java.lang.NoSuchFieldException"
+    },
+    {
+      "type": "java.lang.NoSuchMethodError"
+    },
+    {
+      "type": "java.lang.NoSuchMethodException"
+    },
+    {
+      "type": "java.lang.NullPointerException"
+    },
+    {
+      "type": "java.lang.Number"
+    },
+    {
+      "type": "java.lang.NumberFormatException"
+    },
+    {
+      "type": "java.lang.Object"
+    },
+    {
+      "type": "java.lang.OutOfMemoryError"
+    },
+    {
+      "type": "java.lang.Override"
+    },
+    {
+      "type": "java.lang.Package"
+    },
+    {
+      "type": "java.lang.Process"
+    },
+    {
+      "type": "java.lang.ProcessBuilder"
+    },
+    {
+      "type": "java.lang.ProcessHandle"
+    },
+    {
+      "type": "java.lang.Readable"
+    },
+    {
+      "type": "java.lang.Record"
+    },
+    {
+      "type": "java.lang.ReflectiveOperationException"
+    },
+    {
+      "type": "java.lang.Runnable"
+    },
+    {
+      "type": "java.lang.Runtime"
+    },
+    {
+      "type": "java.lang.RuntimeException"
+    },
+    {
+      "type": "java.lang.RuntimePermission"
+    },
+    {
+      "type": "java.lang.SafeVarargs"
+    },
+    {
+      "type": "java.lang.ScopedValue"
+    },
+    {
+      "type": "java.lang.SecurityException"
+    },
+    {
+      "type": "java.lang.SecurityManager"
+    },
+    {
+      "type": "java.lang.Short"
+    },
+    {
+      "type": "java.lang.StableValue"
+    },
+    {
+      "type": "java.lang.StackOverflowError"
+    },
+    {
+      "type": "java.lang.StackTraceElement"
+    },
+    {
+      "type": "java.lang.StackWalker"
+    },
+    {
+      "type": "java.lang.StrictMath"
+    },
+    {
+      "type": "java.lang.String"
+    },
+    {
+      "type": "java.lang.StringBuffer"
+    },
+    {
+      "type": "java.lang.StringBuilder"
+    },
+    {
+      "type": "java.lang.StringIndexOutOfBoundsException"
+    },
+    {
+      "type": "java.lang.SuppressWarnings"
+    },
+    {
+      "type": "java.lang.System"
+    },
+    {
+      "type": "java.lang.Thread"
+    },
+    {
+      "type": "java.lang.ThreadDeath"
+    },
+    {
+      "type": "java.lang.ThreadGroup"
+    },
+    {
+      "type": "java.lang.ThreadLocal"
+    },
+    {
+      "type": "java.lang.Throwable"
+    },
+    {
+      "type": "java.lang.TypeNotPresentException"
+    },
+    {
+      "type": "java.lang.UnknownError"
+    },
+    {
+      "type": "java.lang.UnsatisfiedLinkError"
+    },
+    {
+      "type": "java.lang.UnsupportedClassVersionError"
+    },
+    {
+      "type": "java.lang.UnsupportedOperationException"
+    },
+    {
+      "type": "java.lang.VerifyError"
+    },
+    {
+      "type": "java.lang.VirtualMachineError"
+    },
+    {
+      "type": "java.lang.Void"
+    },
+    {
+      "type": "java.lang.WrongThreadException"
+    },
+    {
+      "type": "java.lang.foreign.AddressLayout"
+    },
+    {
+      "type": "java.lang.foreign.Arena"
+    },
+    {
+      "type": "java.lang.foreign.FunctionDescriptor"
+    },
+    {
+      "type": "java.lang.foreign.GroupLayout"
+    },
+    {
+      "type": "java.lang.foreign.Linker"
+    },
+    {
+      "type": "java.lang.foreign.MemoryLayout"
+    },
+    {
+      "type": "java.lang.foreign.MemorySegment"
+    },
+    {
+      "type": "java.lang.foreign.PaddingLayout"
+    },
+    {
+      "type": "java.lang.foreign.SegmentAllocator"
+    },
+    {
+      "type": "java.lang.foreign.SequenceLayout"
+    },
+    {
+      "type": "java.lang.foreign.StructLayout"
+    },
+    {
+      "type": "java.lang.foreign.SymbolLookup"
+    },
+    {
+      "type": "java.lang.foreign.UnionLayout"
+    },
+    {
+      "type": "java.lang.foreign.ValueLayout"
+    },
+    {
+      "type": "org.openjdk.jextract.clang.libclang.CXCursorVisitor$Function",
+      "methods": [
+        {
+          "name": "apply",
+          "parameterTypes": [
+            "java.lang.foreign.MemorySegment",
+            "java.lang.foreign.MemorySegment",
+            "java.lang.foreign.MemorySegment"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.NativePRNG",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.security.SecureRandomParameters"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.SHA",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en"
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/services/java.util.spi.ResourceBundleControlProvider"
+    },
+    {
+      "glob": "org/openjdk/jextract/impl/resources/Messages.properties"
+    },
+    {
+      "glob": "org/openjdk/jextract/impl/resources/Messages_en.properties"
+    },
+    {
+      "bundle": "org.openjdk.jextract.impl.resources.Messages"
+    }
+  ],
+  "foreign": {
+    "upcalls": [
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))",
+          "struct(jint,jint,sequence(3, void*))",
+          "void*"
+        ]
+      }
+    ],
+    "downcalls": [
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))",
+          "void*",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "jint"
+        ]
+      },
+      {
+        "returnType": "struct(sequence(2, void*),jint,padding(4))",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "struct(jint,padding(4),sequence(2, void*))",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))"
+        ]
+      },
+      {
+        "returnType": "jlong",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "struct(jint,jint,sequence(3, void*))",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "jlong",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "struct(jint,padding(4),sequence(2, void*))",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "jint",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "struct(sequence(2, void*),jint,jint)",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "struct(sequence(2, void*),jint,padding(4))",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(sequence(2, void*),jint,jint)"
+        ]
+      },
+      {
+        "returnType": "struct(jint,jint,sequence(3, void*))",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))"
+        ]
+      },
+      {
+        "returnType": "struct(jint,padding(4),sequence(2, void*))",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "struct(sequence(2, void*),jint,padding(4))",
+          "void*",
+          "void*",
+          "void*",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "jlong",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "struct(void*,jint,padding(4))",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "jlong",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "struct(void*,jint,padding(4))",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))",
+          "struct(jint,jint,sequence(3, void*))",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(sequence(2, void*),jint,padding(4))",
+          "struct(sequence(2, void*),jint,padding(4))"
+        ]
+      },
+      {
+        "returnType": "jdouble",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "void*",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "void*",
+          "jint",
+          "void*",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "void*",
+          "jint",
+          "void*",
+          "jint",
+          "jint",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "struct(jint,jint,sequence(3, void*))",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "struct(sequence(2, void*),jint,padding(4))",
+        "parameterTypes": []
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "void*",
+          "jint",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "void*",
+          "struct(sequence(2, void*),jint,jint)",
+          "void*",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "struct(void*,jint,padding(4))"
+        ]
+      },
+      {
+        "returnType": "struct(void*,jint,padding(4))",
+        "parameterTypes": [
+          "void*",
+          "struct(sequence(4, jint),void*)"
+        ]
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "struct(void*,jint,padding(4))",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "struct(void*,jint,padding(4))"
+        ]
+      },
+      {
+        "returnType": "struct(void*,jint,padding(4))",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))"
+        ]
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "jint"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(jint,padding(4),sequence(2, void*))",
+          "struct(jint,padding(4),sequence(2, void*))"
+        ]
+      },
+      {
+        "returnType": "jint",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))",
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      },
+      {
+        "returnType": "struct(jint,jint,sequence(3, void*))",
+        "parameterTypes": [
+          "struct(jint,jint,sequence(3, void*))"
+        ]
+      }
+    ]
+  }
+}

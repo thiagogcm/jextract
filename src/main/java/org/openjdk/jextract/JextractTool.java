@@ -427,18 +427,18 @@ public final class JextractTool {
             optionSet.valuesOf("-I").forEach(p -> builder.addClangArg("-I" + p));
         }
 
-        Path builtinInc = Paths.get(System.getProperty("java.home"), "conf", "jextract");
-        if (Files.isDirectory(builtinInc)) {
+        inferBuiltinIncludePath().ifPresent(builtinInc -> {
             builder.addClangArg("-I" + builtinInc);
-        }
+            builder.addClangArg("-nobuiltininc");
+        });
 
         inferPlatformIncludePath().ifPresent(platformPath -> builder.addClangArg("-I" + platformPath));
 
         String jextractHeaderPath = System.getProperty("jextract.header.path");
         if (jextractHeaderPath != null) {
-            builtinInc = Paths.get(jextractHeaderPath);
-            if (Files.isDirectory(builtinInc)) {
-                builder.addClangArg("-I" + builtinInc);
+            Path headerPath = Paths.get(jextractHeaderPath);
+            if (Files.isDirectory(headerPath)) {
+                builder.addClangArg("-I" + headerPath);
             }
         }
 
@@ -607,6 +607,30 @@ public final class JextractTool {
             JextractTool instance = new JextractTool(new Logger(out, err));
             return instance.run(args);
         }
+    }
+
+    /**
+     * Locates the clang builtin headers that are shipped with jextract. In a jlink'd runtime image
+     * these live in {@code <java.home>/conf/jextract}. A native image has no runtime image to point
+     * at, so fall back to a {@code conf/jextract} directory laid out next to the executable.
+     */
+    private static Optional<Path> inferBuiltinIncludePath() {
+        String javaHome = System.getProperty("java.home");
+        if (javaHome != null) {
+            Path builtinInc = Paths.get(javaHome, "conf", "jextract");
+            if (Files.isDirectory(builtinInc)) {
+                return Optional.of(builtinInc);
+            }
+        }
+
+        return ProcessHandle.current().info().command()
+                .map(command -> Paths.get(command).toAbsolutePath())
+                .map(Path::getParent)
+                .flatMap(exeDir -> Stream.of(
+                                exeDir.resolveSibling("conf").resolve("jextract"),
+                                exeDir.resolve("conf").resolve("jextract"))
+                        .filter(Files::isDirectory)
+                        .findFirst());
     }
 
     private Optional<Path> inferPlatformIncludePath() {

@@ -9,33 +9,34 @@ on:
 
 env:
   TOOLCHAIN_VERSION: 25
-  GRADLE_JAVA_VERSION: 21
-  CLANG_LLVM_VERSION: 13.0.0
-  CLANG_LLVM_BASE_URL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.0/"
+  GRADLE_JAVA_VERSION: 25
+  CLANG_LLVM_VERSION: 20.1.8
+  CLANG_LLVM_BASE_URL: "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/"
   JTREG_VERSION: 7.3.1+1
+  GRAALVM_VERSION: "25.2"
 
 jobs:
   validate-gradle-wrapper:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
-      - uses: gradle/actions/wrapper-validation@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+      - uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
   build-jtreg:
     runs-on: ubuntu-latest
     steps:
     - name: 'Check cache for JTReg'
       id: get-cached-jtreg
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ./deps/jtreg/build/images/jtreg
         key: jtreg-${{ env.JTREG_VERSION }}
 
     - name: 'Check out JTReg'
       if: ${{ steps.get-cached-jtreg.outputs.cache-hit != 'true' }}
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: 'openjdk/jtreg'
         ref: 'jtreg-${{ env.JTREG_VERSION }}'
@@ -51,26 +52,40 @@ jobs:
         ls build/images/jtreg
 
   build-and-test:
+    name: 'build-and-test (${{ matrix.os }}, clang ${{ matrix.LLVM_VERSION || matrix.LLVM_APT }})'
     runs-on: ${{ matrix.os }}
     needs: [build-jtreg]
     strategy:
+      # one configuration failing should not hide the result of the others
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
         include:
+          # libclang as packaged by the distribution, which links against a shared libLLVM
+          # rather than being the single large library of an upstream release tarball
+          # clang 20 is the newest version jextract works with: with 21 and later the process
+          # dies of SIGSEGV inside libclang (on a thread libclang spawns for parsing) while
+          # jextract runs under CI; the root cause in libclang has not been identified yet
+          - os: ubuntu-26.04
+            LLVM_APT: 20
+            DEPS_ROOT: /tmp/deps
+          # control: the version jextract has historically been built against, so that a
+          # failure can be attributed to the clang version rather than to anything else
           - os: ubuntu-latest
+            LLVM_VERSION: 13.0.0
             TARGET: clang+llvm-13.0.0-x86_64-linux-gnu-ubuntu-20.04
             ARCHIVE_EXT: "tar.xz"
             LIB_DIR: lib
             DEPS_ROOT: /tmp/deps
           - os: windows-latest
-            TARGET: LLVM-13.0.0-win64
+            LLVM_VERSION: 20.1.8   # keep in sync with env.CLANG_LLVM_VERSION
+            TARGET: LLVM-20.1.8-win64
             ARCHIVE_EXT: "exe"
             LIB_DIR: bin
             DEPS_ROOT: C:/tmp/deps
 
     steps:
     - name: 'Check out repository'
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
 
@@ -81,7 +96,7 @@ jobs:
 
     - name: 'Check cache for toolchain JDK'
       id: get-cached-toolchain
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ matrix.DEPS_ROOT }}/jdk-toolchain
         key: jdk-toolchain-${{ env.TOOLCHAIN_VERSION }}-${{ matrix.os }}
@@ -133,45 +148,43 @@ jobs:
         java --version
         echo JAVA_HOME=$JAVA_HOME
 
-    - name: 'Check cache for LLVM'
-      id: get-cached-llvm
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+    - name: 'Install libclang from the distribution'
+      if: ${{ matrix.LLVM_APT }}
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libclang-${{ matrix.LLVM_APT }}-dev
+        ls -la /usr/lib/llvm-${{ matrix.LLVM_APT }}/lib/libclang.so*
+        ls -d /usr/lib/llvm-${{ matrix.LLVM_APT }}/lib/clang/*/include /usr/lib/llvm-${{ matrix.LLVM_APT }}/include/clang-c
+
+    - name: 'Set up libclang'
+      if: ${{ !matrix.LLVM_APT }}
+      id: llvm
+      uses: ./.github/actions/setup-llvm
       with:
-        path: ${{ matrix.DEPS_ROOT }}/llvm/image
-        key: llvm-${{ env.CLANG_LLVM_VERSION }}-${{ matrix.os }}
+        version: ${{ matrix.LLVM_VERSION }}
+        base-url: https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ matrix.LLVM_VERSION }}/
+        target: ${{ matrix.TARGET }}
+        archive-ext: ${{ matrix.ARCHIVE_EXT }}
+        lib-dir: ${{ matrix.LIB_DIR }}
+        deps-root: ${{ matrix.DEPS_ROOT }}
 
-    - name: 'Download and extract LLVM'
-      if: ${{ steps.get-cached-llvm.outputs.cache-hit != 'true' }}
+    - name: 'Resolve libclang home'
       shell: bash
       run: |
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/unpacked
-        curl -L ${{ env.CLANG_LLVM_BASE_URL }}${{ matrix.TARGET }}.${{ matrix.ARCHIVE_EXT }} -o ${{ matrix.DEPS_ROOT }}/llvm/LLVM.${{ matrix.ARCHIVE_EXT }}
-        if [ "${{ matrix.ARCHIVE_EXT }}" = "exe" ]; then
-          7z x ${{ matrix.DEPS_ROOT }}/llvm/LLVM.${{ matrix.ARCHIVE_EXT }} -o${{ matrix.DEPS_ROOT }}/llvm/unpacked
+        if [ -n "${{ matrix.LLVM_APT }}" ]; then
+          echo "LLVM_HOME=/usr/lib/llvm-${{ matrix.LLVM_APT }}" >> "$GITHUB_ENV"
         else
-          tar --strip-components=1 -xvf ${{ matrix.DEPS_ROOT }}/llvm/LLVM.${{ matrix.ARCHIVE_EXT }} -C ${{ matrix.DEPS_ROOT }}/llvm/unpacked
+          echo "LLVM_HOME=${{ steps.llvm.outputs.llvm-home }}" >> "$GITHUB_ENV"
         fi
-        ls -lah ${{ matrix.DEPS_ROOT }}/llvm/unpacked
-
-    - name: 'Create trimmed-down libclang image (for faster caching)'
-      if: ${{ steps.get-cached-llvm.outputs.cache-hit != 'true' }}
-      shell: bash
-      run: |
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/image/${{ matrix.LIB_DIR }}/
-        cp -a ${{ matrix.DEPS_ROOT }}/llvm/unpacked/${{ matrix.LIB_DIR }}/libclang.* ${{ matrix.DEPS_ROOT }}/llvm/image/${{ matrix.LIB_DIR }}/
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/image/include/clang-c
-        cp -a ${{ matrix.DEPS_ROOT }}/llvm/unpacked/include/clang-c/. ${{ matrix.DEPS_ROOT }}/llvm/image/include/clang-c/
-        mkdir -p ${{ matrix.DEPS_ROOT }}/llvm/image/lib/clang/$CLANG_LLVM_VERSION/include/
-        cp -a ${{ matrix.DEPS_ROOT }}/llvm/unpacked/lib/clang/$CLANG_LLVM_VERSION/include/. ${{ matrix.DEPS_ROOT }}/llvm/image/lib/clang/$CLANG_LLVM_VERSION/include/
-        ls -lah ${{ matrix.DEPS_ROOT }}/llvm/image
 
     - name: 'Build Jextract'
       shell: sh
       run: |
-        sh ./gradlew -Pjdk_home=${{ matrix.DEPS_ROOT }}/jdk-toolchain -Pllvm_home=${{ matrix.DEPS_ROOT }}/llvm/image clean verify
+        sh ./gradlew -Pjdk_home=${{ matrix.DEPS_ROOT }}/jdk-toolchain -Pllvm_home=$LLVM_HOME clean verify
 
     - name: 'Get cached JTReg'
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ./deps/jtreg/build/images/jtreg
         enableCrossOsArchive: true
@@ -181,4 +194,109 @@ jobs:
     - name: 'Run tests'
       shell: sh
       run: |
-        sh ./gradlew -Pjdk_home=${{ matrix.DEPS_ROOT }}/jdk-toolchain -Pllvm_home=${{ matrix.DEPS_ROOT }}/llvm/image -Pjtreg_home=./deps/jtreg/build/images/jtreg jtreg
+        sh ./gradlew -Pjdk_home=${{ matrix.DEPS_ROOT }}/jdk-toolchain -Pllvm_home=$LLVM_HOME -Pjtreg_home=./deps/jtreg/build/images/jtreg jtreg
+
+    # jtreg's own output is long, so surface just the failures at the end of the log
+    - name: 'Summarize jtreg failures'
+      if: ${{ failure() }}
+      shell: bash
+      run: |
+        set +e +o pipefail   # this step only reports, it must not fail the job itself
+
+        echo "=== non-passing tests ==="
+        grep -vE 'Passed\.' build/JTreport/text/summary.txt 2>/dev/null | head -n 80
+
+        # the JVM writes these into the per-test scratch directories
+        mkdir -p build/crash-logs
+        find build/JTwork -name 'hs_err_pid*.log' -exec cp {} build/crash-logs/ \; 2>/dev/null
+        echo
+        echo "=== JVM crash logs: $(ls build/crash-logs | wc -l) found ==="
+        for f in $(ls build/crash-logs/* 2>/dev/null | head -n 2); do
+          echo "----- $f -----"
+          sed -n '1,150p' "$f"
+        done
+
+        echo
+        echo "=== output of failing tests ==="
+        find build/JTwork -name '*.jtr' 2>/dev/null | while read -r jtr; do
+          if grep -qE '^execStatus=(Failed|Error)' "$jtr"; then
+            echo "----- $jtr -----"
+            tail -n 40 "$jtr"
+          fi
+        done > build/failing-tests.txt 2>/dev/null
+        head -n 400 build/failing-tests.txt
+
+    - name: 'Upload jtreg report'
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: jtreg-report-${{ matrix.os }}-clang${{ matrix.LLVM_VERSION || matrix.LLVM_APT }}
+        path: |
+          build/JTreport
+          build/crash-logs
+          build/failing-tests.txt
+        if-no-files-found: warn
+        retention-days: 14
+
+  build-native:
+    name: 'Build native image'
+    runs-on: ubuntu-latest
+    env:
+      DEPS_ROOT: /tmp/deps
+
+    steps:
+    - name: 'Check out repository'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+
+    - name: 'Prepare'
+      shell: bash
+      run: mkdir -p ${{ env.DEPS_ROOT }}
+
+    - name: 'Set up GraalVM'
+      uses: graalvm/setup-graalvm@5298d94fb55a4f185c602eeac5de1b553882abe2 # v1.6.4
+      with:
+        distribution: 'graalvm-community'
+        version: ${{ env.GRAALVM_VERSION }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        native-image-job-reports: 'true'
+
+    - name: 'Check GraalVM version'
+      shell: bash
+      run: |
+        java --version
+        native-image --version
+        echo JAVA_HOME=$JAVA_HOME
+
+    - name: 'Set up libclang'
+      id: llvm
+      uses: ./.github/actions/setup-llvm
+      with:
+        version: ${{ env.CLANG_LLVM_VERSION }}
+        base-url: ${{ env.CLANG_LLVM_BASE_URL }}
+        target: LLVM-${{ env.CLANG_LLVM_VERSION }}-Linux-X64
+        archive-ext: "tar.xz"
+        lib-dir: lib
+        deps-root: ${{ env.DEPS_ROOT }}
+
+    # Gradle runs on the GraalVM JDK here, which is also used as the jextract toolchain
+    - name: 'Build and verify native image'
+      shell: bash
+      run: |
+        sh ./gradlew -Pjdk_home=$JAVA_HOME -Pllvm_home=${{ steps.llvm.outputs.llvm-home }} verifyNative
+
+    # Artifact zips do not preserve the executable bit, so ship a tarball instead
+    - name: 'Package native image'
+      shell: bash
+      run: |
+        tar -czf jextract-native-linux-x64.tar.gz -C build jextract-native
+        ls -lah jextract-native-linux-x64.tar.gz
+
+    - name: 'Upload native image'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: jextract-native-linux-x64
+        path: jextract-native-linux-x64.tar.gz
+        if-no-files-found: error
+        retention-days: 30

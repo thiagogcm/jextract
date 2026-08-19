@@ -5,6 +5,7 @@ import java.nio.file.attribute.PosixFilePermission;
 
 plugins {
     id "java"
+    id "org.graalvm.buildtools.native" version "1.1.9"
 }
 
 sourceSets {
@@ -28,6 +29,27 @@ def static checkPath(String p) {
     }
 }
 
+// Name of the libclang shared library to ship, which cannot be derived from the clang version:
+// LLVM 13 ships libclang.so.13, while LLVM 22 ships libclang.so.22.1.8 behind a lib/clang/22
+// resource directory. Pick a single libclang.so.<version> file, preferring a real file over the
+// symlinks pointing at it, so that exactly one file is copied and renamed to libclang.so. Note
+// that the unversioned libclang.so symlink cannot be followed instead: distributions may point
+// it at a differently named file outside this directory (e.g. libclang-20.so.20).
+def static realLibclangName(String libclangDir) {
+    def versioned = ((new File(libclangDir).listFiles() ?: new File[0]) as List)
+            .findAll { it.name.startsWith("libclang.so.") }
+            .sort { it.name }
+    if (versioned.isEmpty()) {
+        // some distributions ship the library under the unversioned name only
+        if (Files.isRegularFile(Path.of(libclangDir, "libclang.so"))) {
+            return "libclang.so"
+        }
+        throw new IllegalArgumentException("Could not find a libclang shared library in ${libclangDir}")
+    }
+    def real = versioned.find { !Files.isSymbolicLink(it.toPath()) }
+    return (real ?: versioned.first()).name
+}
+
 def llvm_home = project.property("llvm_home")
 def jdk_home = project.property("jdk_home")
 checkPath(llvm_home)
@@ -40,7 +62,7 @@ if (clang_versions.length == 0) {
 def clang_version = clang_versions[0]
 
 def buildDir = layout.buildDirectory.get()
-def jextract_version = "23"
+def jextract_version = "25"
 def jmods_dir = "$buildDir/jmods"
 def jextract_jmod_file = "$jmods_dir/org.openjdk.jextract.jmod"
 def jextract_jmod_inputs = "$buildDir/jmod_inputs"
@@ -60,7 +82,7 @@ repositories {
 }
 
 compileJava {
-    options.release = 23
+    options.release = 25
     options.fork = true
     options.forkOptions.executable = "${jdk_home}/bin/javac${os_exe_suffix}"
 }
@@ -70,17 +92,27 @@ jar {
     archiveVersion = project.version
 }
 
-task copyLibClang(type: Sync) {
+tasks.register("copyLibClang", Sync) {
     into("$buildDir/jmod_inputs")
 
     // make sure we only pick up the "real" shared library file from LLVM installation
     // (e.g. exclude symlinks on Linux)
     def isAix = Os.isName("AIX") || Os.isName("aix")
     def isUnixNotMac  = Os.isFamily(Os.FAMILY_UNIX) && !Os.isFamily(Os.FAMILY_MAC)
-    def clang_path_include = isAix  ? "libclang.a" : isUnixNotMac ? "libclang.so.${clang_version}" : "*clang*"
+    def clang_path_include = isAix  ? "libclang.a" : isUnixNotMac ? realLibclangName(libclang_dir) : "*clang*"
+    // A distribution libclang links against a shared libLLVM, which sits behind several
+    // symlinks (libLLVM.so, libLLVM.so.1, libLLVM.so.20.1) all leading to one real file.
+    // Sync dereferences symlinks, so a wildcard would copy the same (large) library once per
+    // name: ship one copy per real file instead, under its most specific name, which by
+    // symlink convention is the soname that libclang's dynamic section refers to.
+    def libllvm_names = ((new File(libclang_dir).listFiles() ?: new File[0]) as List)
+            .findAll { it.name.startsWith("libLLVM.") }
+            .groupBy { it.toPath().toRealPath() }
+            .values()
+            .collect { group -> group.max { it.name.length() }.name }
     from("${libclang_dir}") {
         include(clang_path_include)
-        include("libLLVM.*")
+        libllvm_names.each { include(it) }
         exclude("clang.exe")
         into("libs")
         // make sure we drop shared library version name (Linux only)
@@ -92,8 +124,8 @@ task copyLibClang(type: Sync) {
     }
 }
 
-task createJextractJmod(type: Exec) {
-    dependsOn jar, copyLibClang
+tasks.register("createJextractJmod", Exec) {
+    dependsOn jar, tasks.named("copyLibClang")
 
     // if these inputs or outputs change, gradle will rerun the task
     inputs.file(jar.archiveFile.get())
@@ -115,8 +147,8 @@ task createJextractJmod(type: Exec) {
     ]
 }
 
-task createJextractImage(type: Exec) {
-    dependsOn createJextractJmod
+tasks.register("createJextractImage", Exec) {
+    dependsOn tasks.named("createJextractJmod")
 
     // if these inputs or outputs change, gradle will rerun the task
     inputs.file("$jextract_jmod_file")
@@ -128,7 +160,7 @@ task createJextractImage(type: Exec) {
 
     doFirst {
         delete(jextract_app_dir)
-        project.mkdir "${jextract_bin_dir}"
+        mkdir "${jextract_bin_dir}"
     }
 
     executable = "${jdk_home}/bin/jlink"
@@ -159,19 +191,21 @@ task createJextractImage(type: Exec) {
 }
 
 // build the jextract image when the build or assemble task is run
-assemble.dependsOn(createJextractImage)
+tasks.named("assemble").configure {
+    dependsOn tasks.named("createJextractImage")
+}
 
 // very simple integration test for generated jextract
-task verify(type: Exec) {
-    dependsOn createJextractImage
+tasks.register("verify", Exec) {
+    dependsOn tasks.named("createJextractImage")
 
     executable = "${jextract_bin_dir}/jextract${os_script_extension}"
     args = [ "test.h", "--output", "$buildDir/integration_test" ]
 }
 
 // jlink a JDK image with org.openjdk.jextract for testing
-task createRuntimeImageForTest(type: Exec) {
-    dependsOn createJextractJmod
+tasks.register("createRuntimeImageForTest", Exec) {
+    dependsOn tasks.named("createJextractJmod")
 
     def out_dir = "$buildDir/jextract-jdk-test-image"
 
@@ -184,14 +218,19 @@ task createRuntimeImageForTest(type: Exec) {
     }
 
     executable = "${jdk_home}/bin/jlink"
+    // Some JDK distributions ship without packaged modules (no jmods directory). Since JDK 24
+    // (JEP 493) jlink can link those modules from the run-time image instead, but they are then
+    // not on the module path, so ALL-MODULE-PATH alone would silently reduce the test image to
+    // the jextract module and its closure. Name the JDK modules the tests need explicitly;
+    // with a full jmods directory present these are already covered by ALL-MODULE-PATH.
     args = [
          "--module-path=$jmods_dir" + File.pathSeparator + "$jdk_home/jmods",
-         "--add-modules=ALL-MODULE-PATH",
+         "--add-modules=ALL-MODULE-PATH,jdk.compiler,jdk.javadoc,jdk.jartool,jdk.zipfs,jdk.attach,jdk.management,jdk.incubator.vector",
          "--output=$out_dir",
     ]
 }
 
-task cmakeConfigure(type: Exec) {
+tasks.register("cmakeConfigure", Exec) {
     executable = "cmake"
     args = [
         "-B", "$buildDir/testlib-build",
@@ -202,8 +241,8 @@ task cmakeConfigure(type: Exec) {
     ]
 }
 
-task cmakeBuild(type: Exec) {
-    dependsOn cmakeConfigure
+tasks.register("cmakeBuild", Exec) {
+    dependsOn tasks.named("cmakeConfigure")
 
     executable = "cmake"
     args = [
@@ -215,12 +254,12 @@ task cmakeBuild(type: Exec) {
 
 // alias that can be easily referenced from a run configuration
 tasks.register("testDeps") {
-    dependsOn createRuntimeImageForTest,cmakeBuild
+    dependsOn "createRuntimeImageForTest", "cmakeBuild"
 }
 
 void createJtregTask(String name, String jacocoAgent, String os_lib_dir) {
     tasks.register(name, JavaExec) {
-        dependsOn testDeps
+        dependsOn "testDeps"
 
         if (findProperty("jtreg_home") == null) {
             throw new GradleException("jtreg_home is not defined")
@@ -258,7 +297,7 @@ if (jacocoAgent != null) {
 }
 
 tasks.register("coverage", JavaExec) {
-    dependsOn jtregWithCoverage
+    dependsOn "jtregWithCoverage"
 
     // e.g.: <jacoco repo>/org.jacoco.cli/target/org.jacoco.cli-0.8.12-SNAPSHOT-nodeps.jar
     if (findProperty("jacoco_cli") == null) {
@@ -290,4 +329,74 @@ tasks.register('writeLibClangVersion') {
 
 tasks.named("createJextractJmod") {
     dependsOn "writeLibClangVersion"
+}
+
+//------------------------------------------------------------
+// GraalVM native-image build
+//------------------------------------------------------------
+def jextract_native_dir = "$buildDir/jextract-native"
+def jextract_native_bin_dir = "$jextract_native_dir/bin"
+def jextract_native_lib_dir = "$jextract_native_dir/libs"
+
+graalvmNative {
+    // The GraalVM used for the build is the JVM running Gradle (or GRAALVM_HOME), not a Gradle toolchain
+    toolchainDetection = false
+
+    binaries {
+        main {
+            imageName = "jextract"
+            mainClass = "org.openjdk.jextract.JextractTool"
+            // libclang is loaded, and its downcall handles are bound, when the image runs
+            buildArgs.add("--enable-native-access=ALL-UNNAMED")
+            buildArgs.add("--initialize-at-run-time=org.openjdk.jextract.clang.libclang.Index_h")
+        }
+    }
+}
+
+// Lay the native executable out like the jlink image: the clang builtin headers live in
+// conf/jextract, next to bin/, which is where JextractTool looks for them.
+tasks.register("createJextractNativeImage", Sync) {
+    dependsOn tasks.named("nativeCompile"), "copyLibClang", "writeLibClangVersion"
+
+    into(jextract_native_dir)
+
+    from(layout.buildDirectory.dir("native/nativeCompile")) {
+        include("jextract", "jextract.exe")
+        into("bin")
+    }
+    from(jextract_jmod_inputs) {
+        include("libs/**", "conf/**")
+    }
+}
+
+// Runs jextract from the classpath on a regular JVM. Under the GraalVM tracing agent
+// (-Pnative_metadata_out=<dir>) this records the libclang downcalls that the native image must
+// register, merging into <dir> so that several headers can be traced in turn. See the README.
+tasks.register("runJextract", JavaExec) {
+    dependsOn classes, "copyLibClang", "writeLibClangVersion"
+
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "org.openjdk.jextract.JextractTool"
+
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    systemProperty("java.library.path", "$jextract_jmod_inputs/libs")
+    systemProperty("jextract.header.path", clang_include_dir)
+
+    def metadataOut = findProperty("native_metadata_out")
+    if (metadataOut != null) {
+        jvmArgs("-agentlib:native-image-agent=config-merge-dir=$metadataOut")
+    }
+}
+
+// same integration test as 'verify', but against the native executable
+tasks.register("verifyNative", Exec) {
+    dependsOn "createJextractNativeImage"
+
+    executable = "$jextract_native_bin_dir/jextract${os_exe_suffix}"
+    args = [ "test.h", "--output", "$buildDir/integration_test_native" ]
+
+    // let the dynamic linker find the libclang shipped alongside the executable
+    def libPathVar = Os.isFamily(Os.FAMILY_WINDOWS) ? "PATH" :
+            Os.isFamily(Os.FAMILY_MAC) ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH"
+    environment(libPathVar, jextract_native_lib_dir + File.pathSeparator + (System.getenv(libPathVar) ?: ""))
 }

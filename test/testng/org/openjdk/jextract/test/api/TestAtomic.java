@@ -42,9 +42,12 @@ public class TestAtomic extends JextractApiTestBase {
 
     @BeforeClass
     public void parse() {
-        // We need stdatomic.h
+        // We need stdatomic.h. Use the copy shipped with jextract, and keep libclang's own
+        // builtin headers out of the search path (as the jextract tool itself does): stdatomic.h
+        // delegates through #include_next, so a second copy of it expands to nothing and the
+        // atomic_* types would be left undefined.
         Path builtinInc = Paths.get(System.getProperty("java.home"), "conf", "jextract");
-        atomic = parse("atomic.h", "-I", builtinInc.toString());
+        atomic = parse("atomic.h", "-I", builtinInc.toString(), "-nobuiltininc");
     }
 
     @Test(dataProvider = "atomicTypes")
